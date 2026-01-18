@@ -1,49 +1,69 @@
 package api;
 
-import api.POJO.*;
-import api.config.ServerConfig;
+import api.DTO.*;
+import api.config.Configuration;
 import api.config.Specifications;
-import io.restassured.http.ContentType;
+import io.restassured.response.ValidatableResponse;
 import org.aeonbits.owner.ConfigFactory;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvFileSource;
 
 import java.time.Clock;
-
 
 import static io.restassured.RestAssured.given;
 import static org.junit.jupiter.api.Assertions.*;
 
-public class ReqresTest { // POST, PUT, один GET
+// ОК - плюс статус коды в конфиг
+// ОК - токен в конфиг
+// ОК - класс application, его экземпляр над тестами в классе тестов, через который идёт обращение к этому файлу
+// ОК - .header("Authorization", "Bearer " + token) - убрать из спецификаций, вынести в тесты. В спец-ях оставить только контент жсон
+// OK - параметризация каждого теста, csv-файлы, вариантивность данных для передачи (2-3 файла)
+// OK - обновить компилятор и проверить кириллицу внутри ConfigReader
+// OK - lombok - из курса видео, настройка в идее + переписать аннотации DTO
+// OK - копипаст build.gradle от Давида к себе (джексон вместо gson)
+// ОК - исправить кодировку установкой зависимости (?)
+// DTO классы в пакет main  <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
-    ServerConfig cfg = ConfigFactory.create(ServerConfig.class);
+
+public class ReqresTest {
+
+    private static final Configuration config = ConfigFactory.create(Configuration.class);
 
     @Test // GET Single User
     public void checkUserEmailTest() {
-        Specifications.installSpecification(Specifications.requestSpec(cfg.urlReqres()), Specifications.responseSpec(200));
+        Specifications.installSpecification(
+                Specifications.requestSpec(),
+                Specifications.responseSpec(config.status200()));
 
         UserData user = given()
-                .auth().oauth2("x-api-key")
+                .baseUri(config.urlReqresApi())
+                .auth().oauth2(config.apiToken())
                 .when()
-                .contentType(ContentType.JSON)
-                .get(cfg.urlReqresApiUsers2())
+                .get(config.users2())
                 .then().log().all()
                 .extract().jsonPath().getObject("data", UserData.class);
 
         assertTrue(user.getEmail().endsWith("@reqres.in"));
     }
 
-    @Test // POST Create user (returns token)
+    @Test
+    // POST Create user (returns token)
     public void successUserRegistrationTest() {
-        Specifications.installSpecification(Specifications.requestSpec(cfg.urlReqres()), Specifications.responseSpec(200));
+        Specifications.installSpecification(
+                Specifications.requestSpec(),
+                Specifications.responseSpec(config.status200()));
+
         Integer id = 4;
         String token = "QpwL5tke4Pnpja7X4";
         Register regData = new Register("eve.holt@reqres.in", "pistol");
 
         SuccessReg successReg = given()
-                .auth().oauth2("x-api-key")
+                .baseUri(config.urlReqresApi())
+                .auth().oauth2(config.apiToken())
                 .body(regData)
                 .when()
-                .post(cfg.urlReqresApiRegister())
+                .post(config.register())
                 .then().log().all()
                 .extract().as(SuccessReg.class);
 
@@ -54,49 +74,71 @@ public class ReqresTest { // POST, PUT, один GET
 
     @Test // POST Register unsuccessful
     public void failUserRegistrationTest() {
-        Specifications.installSpecification(Specifications.requestSpec(cfg.urlReqres()), Specifications.responseSpec(400));
+        Specifications.installSpecification(
+                Specifications.requestSpec(),
+                Specifications.responseSpec(config.status400()));
+
         Register regData = new Register("sydney@fife", "");
 
         FailReg failReg = given()
-                .auth().oauth2("x-api-key")
+                .baseUri(config.urlReqresApi())
+                .auth().oauth2(config.apiToken())
                 .body(regData)
                 .when()
-                .post(cfg.urlReqresApiRegister())
+                .post(config.register())
                 .then().log().all()
                 .extract().as(FailReg.class);
 
         assertEquals("Missing password", failReg.getError());
     }
 
-    @Test // POST Verify session
-    public void verifySessionTest() {
-        Specifications.installSpecification(Specifications.requestSpec(cfg.urlReqres()), Specifications.responseSpec(200));
-        Register regData = new Register("eve.holt@reqres.in", "cityslicka");
-        String expectedToken = "QpwL5tke4Pnpja7X4";
+    @ParameterizedTest(name = "[{index}] email={0}, password={1}")
+    @CsvFileSource(resources = "/testdata/login_positive_cases_eveholt.csv", numLinesToSkip = 1)
+    // POST Verify session
+    public void happyVerifySessionTest(String email,
+                                  String password,
+                                  int expectedStatus,
+                                  String expectedToken,
+                                  String expectedErrorMessage) {
+        Specifications.installSpecification(
+                Specifications.requestSpec(),
+                Specifications.responseSpec(config.status200()));
 
-        Token actualToken = given()
-                .auth().oauth2("x-api-key")
+        Register regData = new Register(email, password);
+
+        ValidatableResponse response = given()
+                .baseUri(config.urlReqresApi())
+                .auth().oauth2(config.apiToken())
                 .body(regData)
                 .when()
-                .post("api/login")
-                .then().log().all()
-                .extract().as(Token.class);
+                .post(config.login())
+                .then()
+                .log().all();
 
-        assertEquals(expectedToken, actualToken.getToken());
+        if (expectedStatus == config.status200()) {
+            Token actualToken = response.extract().as(Token.class);
+            assertEquals(expectedToken, actualToken.getToken());
+        } else {
+            FailReg error = response.extract().as(FailReg.class);
+            assertEquals(expectedErrorMessage, error.getError());
+        }
     }
 
     @Test // POST Create record
     public void createRecordTest() {
-        Specifications.installSpecification(Specifications.requestSpec(cfg.urlReqres()), Specifications.responseSpec(201));
+        Specifications.installSpecification(
+                Specifications.requestSpec(),
+                Specifications.responseSpec(config.status201()));
 
         EmployeeData sentEmployeeData = new EmployeeData("morpheus", "leader", "", "", "");
         EmployeeData expectedEmployeeData = new EmployeeData("morpheus", "leader", "496", "2024-07-01T10:00:00.000Z", "");
 
         EmployeeData receivedEmployeeData = given()
-                .auth().oauth2("x-api-key")
+                .baseUri(config.urlReqresApi())
+                .auth().oauth2(config.apiToken())
                 .body(sentEmployeeData)
                 .when()
-                .post(cfg.urlReqresApiUsers())
+                .post(config.users())
                 .then().log().all()
                 .extract().as(EmployeeData.class);
 
@@ -107,14 +149,18 @@ public class ReqresTest { // POST, PUT, один GET
 
     @Test // POST Login unsuccessful
     public void failLoginTest() {
-        Specifications.installSpecification(Specifications.requestSpec(cfg.urlReqres()), Specifications.responseSpec(400));
+        Specifications.installSpecification(
+                Specifications.requestSpec(),
+                Specifications.responseSpec(config.status400()));
+
         Register regData = new Register("peter@klaven", "");
 
         FailReg failReg = given()
-                .auth().oauth2("x-api-key")
+                .baseUri(config.urlReqresApi())
+                .auth().oauth2(config.apiToken())
                 .body(regData)
                 .when()
-                .post(cfg.urlReqresApiLogin())
+                .post(config.login())
                 .then().log().all()
                 .extract().as(FailReg.class);
         assertEquals("Missing password", failReg.getError());
@@ -122,22 +168,25 @@ public class ReqresTest { // POST, PUT, один GET
 
     @Test // PUT Update
     public void updateUserDataTest() {
-        Specifications.installSpecification(Specifications.requestSpec(cfg.urlReqres()), Specifications.responseSpec(200));
+        Specifications.installSpecification(
+                Specifications.requestSpec(),
+                Specifications.responseSpec(config.status200()));
 
         EmployeeData sentEmployeeData = new EmployeeData("morpheus", "zion resident", "", "", "");
 
         EmployeeData receivedEmployeeData = given()
-                .auth().oauth2("x-api-key")
+                .baseUri(config.urlReqresApi())
+                .auth().oauth2(config.apiToken())
                 .body(sentEmployeeData)
                 .when()
-                .put(cfg.urlReqresApiUsers2())
+                .put(config.users2())
                 .then().log().all()
                 .extract().as(EmployeeData.class);
 
-        String regexExp = "(.{11})$";
+        String regexExp = "(.{14})$";
         String currentTime = Clock.systemUTC().instant().toString().replaceAll(regexExp, "");
 
-        String regexAct = "(.{5})$";
+        String regexAct = "(.{8})$";
         assertEquals(currentTime, receivedEmployeeData.getUpdatedAt().replaceAll(regexAct, ""));
     }
 }
