@@ -17,9 +17,8 @@ public class ReqresNegativeTest {
 
     private static final Configuration config = ConfigFactory.create(Configuration.class);
 
-    @ParameterizedTest(name = "[{index}] email={0}, password={1}")
-    @CsvFileSource(resources = "/testdata/login_negative_cases_eveholt.csv", numLinesToSkip = 1)
-    // POST Verify session
+    @ParameterizedTest
+    @CsvFileSource(resources = "/testdata/login_negative_cases_eveholt.csv") // POST Verify session
     public void negativeSessionTest(String email,
                                   String password,
                                   int expectedStatus,

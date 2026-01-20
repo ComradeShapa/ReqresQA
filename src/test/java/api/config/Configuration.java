@@ -31,6 +31,12 @@ public interface Configuration extends Config {
 
     @Key("status400")
     Integer status400();
+
+    @Key("emailEnding")
+    String emailEnding();
+
+    @Key("missingPasswordError")
+    String missingPasswordError();
 }
 
 

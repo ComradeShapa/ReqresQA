@@ -3,32 +3,38 @@ package api;
 import api.DTO.*;
 import api.config.Configuration;
 import api.config.Specifications;
+import api.dataFactory.EmployeeDataFactory;
+import api.dataFactory.RegisterDataFactory;
 import io.restassured.response.ValidatableResponse;
 import org.aeonbits.owner.ConfigFactory;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvFileSource;
+import org.junit.jupiter.params.provider.MethodSource;
 
 import java.time.Clock;
+import java.util.stream.Stream;
 
 import static io.restassured.RestAssured.given;
 import static org.junit.jupiter.api.Assertions.*;
 
-// ОК - плюс статус коды в конфиг
-// ОК - токен в конфиг
-// ОК - класс application, его экземпляр над тестами в классе тестов, через который идёт обращение к этому файлу
-// ОК - .header("Authorization", "Bearer " + token) - убрать из спецификаций, вынести в тесты. В спец-ях оставить только контент жсон
-// OK - параметризация каждого теста, csv-файлы, вариантивность данных для передачи (2-3 файла)
-// OK - обновить компилятор и проверить кириллицу внутри ConfigReader
-// OK - lombok - из курса видео, настройка в идее + переписать аннотации DTO
-// OK - копипаст build.gradle от Давида к себе (джексон вместо gson)
-// ОК - исправить кодировку установкой зависимости (?)
-// DTO классы в пакет main  <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
-
-
 public class ReqresTest {
 
     private static final Configuration config = ConfigFactory.create(Configuration.class);
+
+    static Stream<EmployeeData> employeeDataStream() {
+        return Stream.of(
+                EmployeeDataFactory.nameJobEmployeeData(),
+                EmployeeDataFactory.fullEmployeeData()
+        );
+    }
+
+    static Stream<Register> registerDataStream() {
+        return Stream.of(
+                RegisterDataFactory.firstEmailData(),
+                RegisterDataFactory.secondEmailData()
+        );
+    }
 
     @Test // GET Single User
     public void checkUserEmailTest() {
@@ -44,19 +50,20 @@ public class ReqresTest {
                 .then().log().all()
                 .extract().jsonPath().getObject("data", UserData.class);
 
-        assertTrue(user.getEmail().endsWith("@reqres.in"));
+        assertTrue(user.getEmail().endsWith(config.emailEnding()));
     }
 
-    @Test
-    // POST Create user (returns token)
-    public void successUserRegistrationTest() {
+    @ParameterizedTest
+    @CsvFileSource(resources = "/testdata/create_user_case.csv") // POST Create user (returns token)
+    public void successUserRegistrationTest(String userEmail,
+                                            String userPassword,
+                                            String expectedToken,
+                                            Integer id) {
         Specifications.installSpecification(
                 Specifications.requestSpec(),
                 Specifications.responseSpec(config.status200()));
 
-        Integer id = 4;
-        String token = "QpwL5tke4Pnpja7X4";
-        Register regData = new Register("eve.holt@reqres.in", "pistol");
+        Register regData = new Register(userEmail, userPassword);
 
         SuccessReg successReg = given()
                 .baseUri(config.urlReqresApi())
@@ -69,31 +76,30 @@ public class ReqresTest {
 
         assertNotNull(successReg);
         assertEquals(id, successReg.getId());
-        assertEquals(token, successReg.getToken());
+        assertEquals(expectedToken, successReg.getToken());
     }
 
-    @Test // POST Register unsuccessful
-    public void failUserRegistrationTest() {
+    @ParameterizedTest
+    @MethodSource("registerDataStream") // POST Register unsuccessful
+    public void failUserRegistrationTest(Register sentRegisterData) {
         Specifications.installSpecification(
                 Specifications.requestSpec(),
                 Specifications.responseSpec(config.status400()));
 
-        Register regData = new Register("sydney@fife", "");
-
         FailReg failReg = given()
                 .baseUri(config.urlReqresApi())
                 .auth().oauth2(config.apiToken())
-                .body(regData)
+                .body(sentRegisterData)
                 .when()
                 .post(config.register())
                 .then().log().all()
                 .extract().as(FailReg.class);
 
-        assertEquals("Missing password", failReg.getError());
+        assertEquals(config.missingPasswordError(), failReg.getError());
     }
 
-    @ParameterizedTest(name = "[{index}] email={0}, password={1}")
-    @CsvFileSource(resources = "/testdata/login_positive_cases_eveholt.csv", numLinesToSkip = 1)
+    @ParameterizedTest
+    @CsvFileSource(resources = "/testdata/login_positive_cases_eveholt.csv")
     // POST Verify session
     public void happyVerifySessionTest(String email,
                                   String password,
@@ -124,14 +130,14 @@ public class ReqresTest {
         }
     }
 
-    @Test // POST Create record
-    public void createRecordTest() {
+    @ParameterizedTest
+    @MethodSource("employeeDataStream")// POST Create record
+    public void createRecordTest(EmployeeData sentEmployeeData) {
         Specifications.installSpecification(
                 Specifications.requestSpec(),
                 Specifications.responseSpec(config.status201()));
 
-        EmployeeData sentEmployeeData = new EmployeeData("morpheus", "leader", "", "", "");
-        EmployeeData expectedEmployeeData = new EmployeeData("morpheus", "leader", "496", "2024-07-01T10:00:00.000Z", "");
+        EmployeeData expectedEmployeeData = EmployeeDataFactory.nameJobEmployeeData();
 
         EmployeeData receivedEmployeeData = given()
                 .baseUri(config.urlReqresApi())
@@ -147,32 +153,30 @@ public class ReqresTest {
         assertNotNull(receivedEmployeeData.getId());
     }
 
-    @Test // POST Login unsuccessful
-    public void failLoginTest() {
+    @ParameterizedTest
+    @MethodSource("registerDataStream") // POST Login unsuccessful
+    public void failLoginTest(Register sentRegisterData) {
         Specifications.installSpecification(
                 Specifications.requestSpec(),
                 Specifications.responseSpec(config.status400()));
 
-        Register regData = new Register("peter@klaven", "");
-
         FailReg failReg = given()
                 .baseUri(config.urlReqresApi())
                 .auth().oauth2(config.apiToken())
-                .body(regData)
+                .body(sentRegisterData)
                 .when()
                 .post(config.login())
                 .then().log().all()
                 .extract().as(FailReg.class);
-        assertEquals("Missing password", failReg.getError());
+        assertEquals(config.missingPasswordError(), failReg.getError());
     }
 
-    @Test // PUT Update
-    public void updateUserDataTest() {
+    @ParameterizedTest
+    @MethodSource("employeeDataStream") // PUT Update
+    public void updateUserDataTest(EmployeeData sentEmployeeData) {
         Specifications.installSpecification(
                 Specifications.requestSpec(),
                 Specifications.responseSpec(config.status200()));
-
-        EmployeeData sentEmployeeData = new EmployeeData("morpheus", "zion resident", "", "", "");
 
         EmployeeData receivedEmployeeData = given()
                 .baseUri(config.urlReqresApi())

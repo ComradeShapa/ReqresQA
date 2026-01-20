@@ -1,5 +1,4 @@
-﻿email,password,expectedStatus,expectedToken,expectedError
-eve.holt@reqres.in,cityslicka,200,QpwL5tke4Pnpja7X4,
+﻿eve.holt@reqres.in,cityslicka,200,QpwL5tke4Pnpja7X4,
 eve.holt@reqres.in,ситислика,200,QpwL5tke4Pnpja7X4,
 eve.holt@reqres.in,citysl1cka,200,QpwL5tke4Pnpja7X4,
 eve.holt@reqres.in,ciTyslicka,200,QpwL5tke4Pnpja7X4,
