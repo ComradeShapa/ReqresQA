@@ -35,8 +35,14 @@ dependencies {
 
     testImplementation("org.aeonbits.owner:owner:1.0.12")
     implementation("org.aeonbits.owner:owner:1.0.12")
+
+    implementation("org.postgresql:postgresql:42.7.9")
+
 }
 
 tasks.test {
     useJUnitPlatform()
 }
+
+// Что сделано в сравнении с пред. версией:
+// - почищены лишние зависимости (сделать!)ко

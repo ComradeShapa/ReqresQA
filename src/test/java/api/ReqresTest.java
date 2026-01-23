@@ -7,11 +7,12 @@ import api.dataFactory.EmployeeDataFactory;
 import api.dataFactory.RegisterDataFactory;
 import io.restassured.response.ValidatableResponse;
 import org.aeonbits.owner.ConfigFactory;
-import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.*;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvFileSource;
 import org.junit.jupiter.params.provider.MethodSource;
 
+import java.sql.*;
 import java.time.Clock;
 import java.util.stream.Stream;
 
@@ -34,6 +35,63 @@ public class ReqresTest {
                 RegisterDataFactory.firstEmailData(),
                 RegisterDataFactory.secondEmailData()
         );
+    }
+
+    @BeforeEach
+    public void databaseSetup() {
+
+        try(Connection connection = DriverManager.getConnection(
+                config.urlDB(),
+                config.usernameDB(),
+                config.passwordDB())) {
+
+            String dropTableSql = "drop table if exists register ";
+
+            String createTableSql = "create table if not exists register (" +
+                    "id serial primary key, " +
+                    "email varchar(25) not null, " +
+                    "password varchar(25) not null)";
+
+            String addRegisterSql = "insert into register(email, password) values (?, ?)";
+
+            Statement statement = connection.createStatement();
+            statement.execute(dropTableSql);
+
+            statement.execute(createTableSql);
+
+            PreparedStatement prepStatement = connection.prepareStatement(addRegisterSql);
+            prepStatement.setString(1, "eve.holt@reqres.in");
+            prepStatement.setString(2, "pistol");
+            prepStatement.executeUpdate();
+        }
+        catch (SQLException e) {
+            throw new RuntimeException(e.getMessage());
+        }
+    }
+
+    @Test
+    public void checkIfUserExistsInDatabaseTest() throws SQLException {
+
+        String sql = "select email, password from register where email = ?";
+
+        String expectedEmail = "eve.holt@reqres.in";
+        String expectedPassword = "pistol";
+
+        try(Connection connection = DriverManager.getConnection(
+                config.urlDB(),
+                config.usernameDB(),
+                config.passwordDB())) {
+
+            PreparedStatement statement = connection.prepareStatement(sql);
+            statement.setString(1, expectedEmail);
+
+            try(ResultSet resultSet = statement.executeQuery()) {
+                assertTrue(resultSet.next());
+
+                assertEquals(expectedEmail, resultSet.getString("email"));
+                assertEquals(expectedPassword, resultSet.getString("password"));
+            }
+        }
     }
 
     @Test // GET Single User
@@ -187,10 +245,10 @@ public class ReqresTest {
                 .then().log().all()
                 .extract().as(EmployeeData.class);
 
-        String regexExp = "(.{14})$";
+        String regexExp = "(.{17})$";
         String currentTime = Clock.systemUTC().instant().toString().replaceAll(regexExp, "");
 
-        String regexAct = "(.{8})$";
+        String regexAct = "(.{11})$";
         assertEquals(currentTime, receivedEmployeeData.getUpdatedAt().replaceAll(regexAct, ""));
     }
 }

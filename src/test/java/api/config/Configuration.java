@@ -37,6 +37,15 @@ public interface Configuration extends Config {
 
     @Key("missingPasswordError")
     String missingPasswordError();
+
+    @Key("usernameDB")
+    String usernameDB();
+
+    @Key("passwordDB")
+    String passwordDB();
+
+    @Key("urlDB")
+    String urlDB();
 }
 
 
