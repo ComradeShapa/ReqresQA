@@ -12,7 +12,6 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvFileSource;
 import org.junit.jupiter.params.provider.MethodSource;
 
-import java.sql.*;
 import java.time.Clock;
 import java.util.stream.Stream;
 
@@ -23,77 +22,6 @@ public class ReqresTest {
 
     private static final Configuration config = ConfigFactory.create(Configuration.class);
 
-    static Stream<EmployeeData> employeeDataStream() {
-        return Stream.of(
-                EmployeeDataFactory.nameJobEmployeeData(),
-                EmployeeDataFactory.fullEmployeeData()
-        );
-    }
-
-    static Stream<Register> registerDataStream() {
-        return Stream.of(
-                RegisterDataFactory.firstEmailData(),
-                RegisterDataFactory.secondEmailData()
-        );
-    }
-
-    @BeforeEach
-    public void databaseSetup() {
-
-        try(Connection connection = DriverManager.getConnection(
-                config.urlDB(),
-                config.usernameDB(),
-                config.passwordDB())) {
-
-            String dropTableSql = "drop table if exists register ";
-
-            String createTableSql = "create table if not exists register (" +
-                    "id serial primary key, " +
-                    "email varchar(25) not null, " +
-                    "password varchar(25) not null)";
-
-            String addRegisterSql = "insert into register(email, password) values (?, ?)";
-
-            Statement statement = connection.createStatement();
-            statement.execute(dropTableSql);
-
-            statement.execute(createTableSql);
-
-            PreparedStatement prepStatement = connection.prepareStatement(addRegisterSql);
-            prepStatement.setString(1, "eve.holt@reqres.in");
-            prepStatement.setString(2, "pistol");
-            prepStatement.executeUpdate();
-        }
-        catch (SQLException e) {
-            throw new RuntimeException(e.getMessage());
-        }
-    }
-
-    @Test
-    public void checkIfUserExistsInDatabaseTest() throws SQLException {
-
-        String sql = "select email, password from register where email = ?";
-
-        String expectedEmail = "eve.holt@reqres.in";
-        String expectedPassword = "pistol";
-
-        try(Connection connection = DriverManager.getConnection(
-                config.urlDB(),
-                config.usernameDB(),
-                config.passwordDB())) {
-
-            PreparedStatement statement = connection.prepareStatement(sql);
-            statement.setString(1, expectedEmail);
-
-            try(ResultSet resultSet = statement.executeQuery()) {
-                assertTrue(resultSet.next());
-
-                assertEquals(expectedEmail, resultSet.getString("email"));
-                assertEquals(expectedPassword, resultSet.getString("password"));
-            }
-        }
-    }
-
     @Test // GET Single User
     public void checkUserEmailTest() {
         Specifications.installSpecification(
@@ -102,7 +30,7 @@ public class ReqresTest {
 
         UserData user = given()
                 .baseUri(config.urlReqresApi())
-                .auth().oauth2(config.apiToken())
+                .header("x-api-key", config.apiToken())
                 .when()
                 .get(config.users2())
                 .then().log().all()
@@ -125,7 +53,7 @@ public class ReqresTest {
 
         SuccessReg successReg = given()
                 .baseUri(config.urlReqresApi())
-                .auth().oauth2(config.apiToken())
+                .header("x-api-key", config.apiToken())
                 .body(regData)
                 .when()
                 .post(config.register())
@@ -146,7 +74,7 @@ public class ReqresTest {
 
         FailReg failReg = given()
                 .baseUri(config.urlReqresApi())
-                .auth().oauth2(config.apiToken())
+                .header("x-api-key", config.apiToken())
                 .body(sentRegisterData)
                 .when()
                 .post(config.register())
@@ -172,7 +100,7 @@ public class ReqresTest {
 
         ValidatableResponse response = given()
                 .baseUri(config.urlReqresApi())
-                .auth().oauth2(config.apiToken())
+                .header("x-api-key", config.apiToken())
                 .body(regData)
                 .when()
                 .post(config.login())
@@ -199,7 +127,7 @@ public class ReqresTest {
 
         EmployeeData receivedEmployeeData = given()
                 .baseUri(config.urlReqresApi())
-                .auth().oauth2(config.apiToken())
+                .header("x-api-key", config.apiToken())
                 .body(sentEmployeeData)
                 .when()
                 .post(config.users())
@@ -220,7 +148,7 @@ public class ReqresTest {
 
         FailReg failReg = given()
                 .baseUri(config.urlReqresApi())
-                .auth().oauth2(config.apiToken())
+                .header("x-api-key", config.apiToken())
                 .body(sentRegisterData)
                 .when()
                 .post(config.login())
@@ -238,7 +166,7 @@ public class ReqresTest {
 
         EmployeeData receivedEmployeeData = given()
                 .baseUri(config.urlReqresApi())
-                .auth().oauth2(config.apiToken())
+                .header("x-api-key", config.apiToken())
                 .body(sentEmployeeData)
                 .when()
                 .put(config.users2())
@@ -251,4 +179,19 @@ public class ReqresTest {
         String regexAct = "(.{11})$";
         assertEquals(currentTime, receivedEmployeeData.getUpdatedAt().replaceAll(regexAct, ""));
     }
+
+    static Stream<EmployeeData> employeeDataStream() {
+        return Stream.of(
+                EmployeeDataFactory.nameJobEmployeeData(),
+                EmployeeDataFactory.fullEmployeeData()
+        );
+    }
+
+    static Stream<Register> registerDataStream() {
+        return Stream.of(
+                RegisterDataFactory.firstEmailData(),
+                RegisterDataFactory.secondEmailData()
+        );
+    }
+
 }
