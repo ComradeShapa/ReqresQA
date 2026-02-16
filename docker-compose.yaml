@@ -1,0 +1,18 @@
+﻿services:
+  postgres:
+    image: postgres:15                              # Можно указать конкретную версию: 14, 13 и т.д.
+    container_name: reqres-postgres
+    environment:
+      POSTGRES_USER: postgres                       # Логин для подключения
+      POSTGRES_PASSWORD: admin                      # Пароль
+      POSTGRES_DB: reqres_db                        # Имя базы данных, которая будет создана
+    ports:
+      - "5431:5432"                                 # Проброс порта наружу
+    volumes:
+      - postgres_data:/var/lib/postgresql/data      # Том для сохранения данных
+      - ./init-scripts:/docker-entrypoint-initdb.d  # Папка со скриптами инициализации
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+    name: postgres-test-data

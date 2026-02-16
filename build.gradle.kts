@@ -38,6 +38,8 @@ dependencies {
 
     implementation("org.postgresql:postgresql:42.7.9")
 
+    implementation("net.datafaker:datafaker:2.5.3")
+
 }
 
 tasks.test {
