@@ -7,9 +7,9 @@ import java.util.List;
 
 public class UserDataGenerator {
 
-    public static List<Register> generateAccountsList(Integer numberOfAccounts) {
+    private static final Faker faker = new Faker();
 
-        Faker faker = new Faker();
+    public static List<Register> generateRegistersList(Integer numberOfAccounts) {
 
         return faker.collection(
                 () -> new Register(
@@ -20,4 +20,7 @@ public class UserDataGenerator {
                 .generate();
     }
 
+    public static Register generateRegister() {
+        return new Register(faker.internet().emailAddress(), faker.credentials().password());
+    }
 }

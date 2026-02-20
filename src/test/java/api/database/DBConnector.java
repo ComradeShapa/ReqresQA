@@ -11,10 +11,17 @@ public class DBConnector {
 
     private static final Configuration config = ConfigFactory.create(Configuration.class);
 
-    public static Connection getConnection() throws SQLException {
-        return DriverManager.getConnection(
-                    config.urlDB(),
-                    config.usernameDB(),
-                    config.passwordDB());
+    private static final String URL_DB = config.urlDB();
+    private static final String USERNAME_DB = config.usernameDB();
+    private static final String PASSWORD_DB = config.passwordDB();
+
+    public static Connection getConnection() {
+        Connection connection = null;
+        try {
+            connection = DriverManager.getConnection(URL_DB, USERNAME_DB, PASSWORD_DB);
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return connection;
     }
 }

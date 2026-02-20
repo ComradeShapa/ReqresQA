@@ -1,60 +1,63 @@
 package api;
 
 import api.DTO.Register;
+import api.config.Configuration;
 import api.dataFactory.UserDataGenerator;
-import api.database.DBConnector;
 import api.database.DBUtilities;
+import org.aeonbits.owner.ConfigFactory;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.MethodSource;
+import org.junit.jupiter.api.Test;
 
-import java.sql.*;
-import java.util.ArrayList;
 import java.util.List;
-import java.util.stream.Stream;
+import java.util.Random;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.*;
 
 public class DatabaseTest {
 
-    private static Stream<List<Register>> accountsListProvider() {
-        return Stream.of(UserDataGenerator.generateAccountsList(10));
-    }
+    private static final Configuration config = ConfigFactory.create(Configuration.class);
+
+    public static Register generatedAccount = UserDataGenerator.generateRegister();
+    public static List<Register> generatedAccountsList = UserDataGenerator.generateRegistersList(10);
 
     @BeforeEach
     public void databaseSetup() {
-
-        try (Connection connection = DBConnector.getConnection()) {
-            DBUtilities.dropRegisterTable(connection);
-            DBUtilities.createRegisterTable(connection);
-
-        } catch (SQLException e) {
-            throw new RuntimeException(e.getMessage());
-        }
+        DBUtilities.dropRegisterTable();
+        DBUtilities.createRegisterTable();
+        DBUtilities.postRegister(generatedAccountsList);
+        DBUtilities.postRegister(generatedAccount);
     }
 
-    @ParameterizedTest
-    @MethodSource("accountsListProvider")
-    public void checkIfAccountsExistInDatabaseTest(List<Register> expectedAccounts) throws SQLException {
+    @Test
+    public void postRegisterTest() {
+        Register actualRegister = DBUtilities.selectRegisterByEmail(generatedAccount.getEmail());
+        assertEquals(actualRegister, generatedAccount);
+    }
 
-        String sql = "select email, password from register";
+    @Test
+    public void patchRegisterTest() {
+        String expectedPassword = config.passwordDB();
+        DBUtilities.patchRegister(generatedAccount.getEmail(), expectedPassword);
+        Register patchedRegister = DBUtilities.selectRegisterByEmail(generatedAccount.getEmail());
 
-        try(Connection connection = DBConnector.getConnection()) {
+        assertNotNull(patchedRegister);
+        assertEquals(expectedPassword, patchedRegister.getPassword());
+    }
 
-            DBUtilities.addListOfAccounts(expectedAccounts, connection);
-            PreparedStatement statement = connection.prepareStatement(sql);
-            ResultSet resultSet = statement.executeQuery();
+    @Test
+    public void deleteRegisterTest() {
+        DBUtilities.deleteRegisterByEmail(generatedAccount.getEmail());
+        assertNull(DBUtilities.selectRegisterByEmail(generatedAccount.getEmail()));
+    }
 
-            List<Register> actualAccounts = new ArrayList<>();
+    @Test
+    public void compareRegisterByIdTest() {
+        Random random = new Random();
+        int arrayIndex = random.nextInt(generatedAccountsList.size());
 
-            while (resultSet.next()) {
-                actualAccounts.add(new Register(
-                        resultSet.getString("email"),
-                        resultSet.getString("password"))
-                );
-            }
-            assertEquals(expectedAccounts.size(), actualAccounts.size());
-            assertEquals(expectedAccounts, actualAccounts);
-        }
+        Register expectedListRegister = generatedAccountsList.get(arrayIndex);
+        Register actualDatabaseRegister = DBUtilities.selectRegisterById(arrayIndex);
+
+        assertEquals(expectedListRegister, actualDatabaseRegister);
     }
 }

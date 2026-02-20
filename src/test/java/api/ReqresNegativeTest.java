@@ -32,7 +32,7 @@ public class ReqresNegativeTest {
 
         ValidatableResponse response = given()
                 .baseUri(config.urlReqresApi())
-                .auth().oauth2(config.apiToken())
+                .header("x-api-key", config.apiToken())
                 .body(regData)
                 .when()
                 .post(config.login())

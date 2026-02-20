@@ -85,8 +85,7 @@ public class ReqresTest {
     }
 
     @ParameterizedTest
-    @CsvFileSource(resources = "/testdata/login_positive_cases_eveholt.csv")
-    // POST Verify session
+    @CsvFileSource(resources = "/testdata/login_positive_cases_eveholt.csv") // POST Verify session
     public void happyVerifySessionTest(String email,
                                   String password,
                                   int expectedStatus,
