@@ -4,11 +4,11 @@ import api.DTO.*;
 import api.config.Configuration;
 import api.config.Specifications;
 import api.dataFactory.EmployeeDataFactory;
-import api.dataFactory.RegisterDataFactory;
 import io.restassured.response.ValidatableResponse;
 import org.aeonbits.owner.ConfigFactory;
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.CsvFileSource;
 import org.junit.jupiter.params.provider.MethodSource;
 
@@ -18,7 +18,7 @@ import java.util.stream.Stream;
 import static io.restassured.RestAssured.given;
 import static org.junit.jupiter.api.Assertions.*;
 
-public class ReqresTest {
+public class ReqresPositiveTest {
 
     private static final Configuration config = ConfigFactory.create(Configuration.class);
 
@@ -66,7 +66,7 @@ public class ReqresTest {
     }
 
     @ParameterizedTest
-    @MethodSource("registerDataStream") // POST Register unsuccessful
+    @MethodSource("argumentsDataStream") // POST Register unsuccessful
     public void failUserRegistrationTest(Register sentRegisterData) {
         Specifications.installSpecification(
                 Specifications.requestSpec(),
@@ -116,7 +116,7 @@ public class ReqresTest {
     }
 
     @ParameterizedTest
-    @MethodSource("employeeDataStream")// POST Create record
+    @MethodSource("argumentsDataStream")// POST Create record
     public void createRecordTest(EmployeeData sentEmployeeData) {
         Specifications.installSpecification(
                 Specifications.requestSpec(),
@@ -139,7 +139,7 @@ public class ReqresTest {
     }
 
     @ParameterizedTest
-    @MethodSource("registerDataStream") // POST Login unsuccessful
+    @MethodSource("argumentsDataStream") // POST Login unsuccessful
     public void failLoginTest(Register sentRegisterData) {
         Specifications.installSpecification(
                 Specifications.requestSpec(),
@@ -157,7 +157,7 @@ public class ReqresTest {
     }
 
     @ParameterizedTest
-    @MethodSource("employeeDataStream") // PUT Update
+    @MethodSource("argumentsDataStream") // PUT Update
     public void updateUserDataTest(EmployeeData sentEmployeeData) {
         Specifications.installSpecification(
                 Specifications.requestSpec(),
@@ -179,17 +179,10 @@ public class ReqresTest {
         assertEquals(currentTime, receivedEmployeeData.getUpdatedAt().replaceAll(regexAct, ""));
     }
 
-    static Stream<EmployeeData> employeeDataStream() {
+    static Stream<Arguments> argumentsDataStream() {
         return Stream.of(
-                EmployeeDataFactory.nameJobEmployeeData(),
-                EmployeeDataFactory.fullEmployeeData()
-        );
-    }
-
-    static Stream<Register> registerDataStream() {
-        return Stream.of(
-                RegisterDataFactory.firstEmailData(),
-                RegisterDataFactory.secondEmailData()
+                Arguments.of(EmployeeDataFactory.fullEmployeeData()),
+                Arguments.of(EmployeeDataFactory.nameJobEmployeeData())
         );
     }
 

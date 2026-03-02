@@ -5,7 +5,7 @@ import net.datafaker.Faker;
 
 import java.util.List;
 
-public class UserDataGenerator {
+public class FakerDataGenerator {
 
     private static final Faker faker = new Faker();
 
@@ -20,7 +20,7 @@ public class UserDataGenerator {
                 .generate();
     }
 
-    public static Register generateRegister() {
-        return new Register(faker.internet().emailAddress(), faker.credentials().password());
+    public static int rndIntFromOneToIncluding(int max) {
+        return faker.number().numberBetween(1, ++max);
     }
 }
